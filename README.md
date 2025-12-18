@@ -1,80 +1,116 @@
 Antibiotic Generation & Hierarchical Graph Analysis
-This repository contains a specialized implementation of the Hierarchical Graph VAE (HierVAE) for the generation of antibiotic-like molecules. It includes scripts for data collection, preprocessing, model training, and a multi-stage evaluation pipeline to analyze the flow of chemical information through the model.
+
+This repository implements a Hierarchical Graph Variational Autoencoder (HierVAE) for the generation and analysis of antibiotic-like molecules. It provides a complete pipeline including data collection, preprocessing, model training, and multi-stage evaluation** to study chemical information flow through the model.
 
 🛠 Environment Setup
-To ensure all scripts run correctly, it is recommended to use a Conda environment. This project relies on RDKit and PyTorch, which are best managed via Conda.
 
-1. Create and Activate Environment
-Bash
+It is recommended to use a Conda environment (annaconda) to ensure all dependencies, such as RDKit and PyTorch, are correctly installed.
 
+1. Create and activate environment
+
+bash
 conda create -n hgraph python=3.7
 conda activate hgraph
-2. Install Core Dependencies
-Install the required scientific and chemical informatics libraries:
 
-Bash
+2. Install core dependencies
+   
+RDKit (required for chemical sanitization and fingerprints):
 
-# Install RDKit (Required for chemical sanitization and fingerprints)
+bash
 conda install -c rdkit rdkit
+PyTorch (adjust cudatoolkit version according to your GPU):
 
-# Install PyTorch (Adjust 'cudatoolkit' version based on your GPU)
+bash
 conda install pytorch cudatoolkit=11.3 -c pytorch
+Supporting libraries:
 
-# Install supporting libraries
+bash
 pip install scikit-learn pandas matplotlib networkx tqdm
 
-
 Workflow Summary
-1. Data Collection & Cleaning
-Step 1: Patent Verification: Run the scraper to verify chemical data against known patents.
+- Data Collection & Cleaning
+- Patent Verification
+- Scrapes chemical entries from ChEMBL and verifies them against known patents.
 
-Bash
+bash
 python check_chembl_patents.py
 Note: Scrapes 400 entries from chembl/all.txt.
 
-Step 2: Sanitization: Deep clean the SMILES data to ensure chemical validity.
+Sanitization
+Cleans SMILES data to ensure chemical validity.
 
-Bash
+bash
 python sanitize_data.py
 
-2. Vocabulary & Preprocessing
+Vocabulary & Preprocessing
+Extract Vocabulary
+Generate a hierarchical substructure vocabulary from cleaned molecules.
 
-Step 3: Extract Vocabulary: Extract the hierarchical substructure vocabulary from the cleaned dataset.
-
-Bash
+bash
 python get_vocab.py < data/antibiotics/all_clean.txt > data/antibiotics/vocab.txt
 
-Step 4: Tensorization: Preprocess the molecules into graph and tree tensors.
+Tensorization
+Convert molecules into graph and tree tensors for model input.
 
-Bash
+bash
 python preprocess.py --train data/antibiotics/all_clean.txt --vocab data/antibiotics/vocab.txt --ncpu 4 --mode single
 
-Step 5-6: Data Organization:
+Organize Processed Data
 
-Bash
+bash
 mkdir -p data/antibiotics/processed
 mv tensors-0.pkl data/antibiotics/processed/
 
-3. Training
+Model Training
+Setup Checkpoint Directories
 
-Step 7: Setup Directories:
-
-Bash
+bash
 mkdir -p ckpt
 mkdir -p ckpt/antibiotic
+Train HierVAE Generator
 
-Step 8: Model Training: Train the HierVAE generator.
+bash
+python train_generator.py \
+    --train data/antibiotics/processed/ \
+    --vocab data/antibiotics/vocab.txt \
+    --save_dir ckpt/antibiotic-model \
+    --save_iter 20 \
+    --epoch 50
 
-Bash
-python train_generator.py --train data/antibiotics/processed/ --vocab data/antibiotics/vocab.txt --save_dir ckpt/antibiotic-model --save_iter 20 --epoch 50
+Evaluation & Analysis
+Global Metrics & Checkpoint Analysis
+Evaluate reconstruction performance across checkpoints.
 
-4. Evaluation & Analysis
-Step 9: Global Metrics: Measure Exact Match and Tanimoto similarity scores and Checkpoint Analysis: Review performance across different training iterations.
-
-Bash 
+bash
 python evaluate_reconstruction_to_checkpoints.py
 
-Step 11: Hidden-State Probing (Experiment 1): Predict molecular properties from internal decoder layers. Partial Decoding Analysis (Experiment 2): Visualize structural convergence during motif-by-motif assembly.
+Hidden-State Probing & Partial Decoding Analysis
+Analyze latent space representations and visualize structural convergence during motif-by-motif assembly.
 
-Bash 
+bash
 python evaluate_full_diagnostics.py
+
+Outputs
+Reconstruction metrics: results.csv
+
+Tanimoto similarity histogram: tanimoto_histogram_visualization.png
+
+Partial decoding growth plot: partial_decoding_plot.png
+
+Latent space probing results: printed to terminal
+
+These outputs provide quantitative and qualitative insight into the model’s performance and interpretability.
+
+📁 Folder Structure
+Copy code
+hgraph2graph-FINALS/
+│
+├── ckpt/                  # Trained model checkpoints
+├── data/                  # Raw and processed molecule datasets
+├── hgraph/                # Core HierVAE implementation
+├── evaluate_reconstructions.py  # Evaluate molecular reconstruction performance
+├── evaluate_full_diagnostics.py # Full diagnostics including hidden-state probing
+├── show_molecules.py      # Visualize molecules side-by-side
+├── partial_decoding_plot.png    # Example plot from diagnostics
+└── README.md              # This file
+
