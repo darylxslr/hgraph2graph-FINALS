@@ -14,7 +14,7 @@ class HTuple():
 
 class HierMPNDecoder(nn.Module):
 
-    def __init__(self, vocab, avocab, rnn_type, embed_size, hidden_size, latent_size, depthT, depthG, dropout, attention=False):
+    def __init__(self, vocab, avocab, rnn_type, embed_size, hidden_size, latent_size, depthT, depthG, dropout, attention=False, device=None):
         super(HierMPNDecoder, self).__init__()
         self.vocab = vocab
         self.avocab = avocab
@@ -22,12 +22,13 @@ class HierMPNDecoder(nn.Module):
         self.embed_size = embed_size
         self.latent_size = latent_size
         self.use_attention = attention
-        self.itensor = torch.LongTensor([]).cuda()
+        self.device = device if device is not None else torch.device('cpu')
+        self.itensor = torch.LongTensor([]).to(self.device)
 
         self.hmpn = IncHierMPNEncoder(vocab, avocab, rnn_type, embed_size, hidden_size, depthT, depthG, dropout)
         self.rnn_cell = self.hmpn.tree_encoder.rnn
         self.E_assm = self.hmpn.E_i 
-        self.E_order = torch.eye(MolGraph.MAX_POS).cuda()
+        self.E_order = torch.eye(MolGraph.MAX_POS).to(self.device)
 
         self.topoNN = nn.Sequential(
                 nn.Linear(hidden_size + latent_size, hidden_size),
@@ -61,10 +62,10 @@ class HierMPNDecoder(nn.Module):
             self.A_cls = nn.Linear(hidden_size, latent_size)
             self.A_assm = nn.Linear(hidden_size, latent_size)
 
-        self.topo_loss = nn.BCEWithLogitsLoss(size_average=False)
-        self.cls_loss = nn.CrossEntropyLoss(size_average=False)
-        self.icls_loss = nn.CrossEntropyLoss(size_average=False)
-        self.assm_loss = nn.CrossEntropyLoss(size_average=False)
+        self.topo_loss = nn.BCEWithLogitsLoss(reduction='sum')
+        self.cls_loss = nn.CrossEntropyLoss(reduction='sum')
+        self.icls_loss = nn.CrossEntropyLoss(reduction='sum')
+        self.assm_loss = nn.CrossEntropyLoss(reduction='sum')
         
     def apply_tree_mask(self, tensors, cur, prev):
         fnode, fmess, agraph, bgraph, cgraph, scope = tensors
@@ -148,7 +149,7 @@ class HierMPNDecoder(nn.Module):
         if cls_labs is None: #inference mode
             icls_scores = self.iclsNN(cls_vecs) #no masking
         else:
-            vocab_masks = self.vocab.get_mask(cls_labs)
+            vocab_masks = self.vocab.get_mask(cls_labs).to(self.device)
             icls_scores = self.iclsNN(cls_vecs) + vocab_masks #apply mask by log(x + mask): mask=0 or -INF
         return cls_scores, icls_scores
 
@@ -300,7 +301,7 @@ class HierMPNDecoder(nn.Module):
         batch_idx = self.itensor.new_tensor(range(batch_size))
         cls_scores, icls_scores = self.get_cls_score(src_tree_vecs, batch_idx, init_vecs, None)
         root_cls = cls_scores.max(dim=-1)[1]
-        icls_scores = icls_scores + self.vocab.get_mask(root_cls)
+        icls_scores = icls_scores + self.vocab.get_mask(root_cls).to(self.device)
         root_cls, root_icls = root_cls.tolist(), icls_scores.max(dim=-1)[1].tolist()
 
         super_root = tree_batch.add_node() 

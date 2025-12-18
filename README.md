@@ -30,7 +30,7 @@ Step 1: Patent Verification: Run the scraper to verify chemical data against kno
 
 Bash
 python check_chembl_patents.py
-Note: Scrapes 300 entries from chembl/all.txt.
+Note: Scrapes 400 entries from chembl/all.txt.
 
 Step 2: Sanitization: Deep clean the SMILES data to ensure chemical validity.
 
@@ -52,16 +52,16 @@ python preprocess.py --train data/antibiotics/all_clean.txt --vocab data/antibio
 Step 5-6: Data Organization:
 
 Bash
-mkdir data\antibiotics\processed
-move tensors-0.pkl data\antibiotics\processed\
+mkdir -p data/antibiotics/processed
+mv tensors-0.pkl data/antibiotics/processed/
 
 3. Training
 
 Step 7: Setup Directories:
 
 Bash
-mkdir ckpt
-mkdir ckpt\antibiotic
+mkdir -p ckpt
+mkdir -p ckpt/antibiotic
 
 Step 8: Model Training: Train the HierVAE generator.
 
@@ -69,22 +69,12 @@ Bash
 python train_generator.py --train data/antibiotics/processed/ --vocab data/antibiotics/vocab.txt --save_dir ckpt/antibiotic-model --save_iter 20 --epoch 50
 
 4. Evaluation & Analysis
-Step 9: Global Metrics: Measure Exact Match and Tanimoto similarity scores.
+Step 9: Global Metrics: Measure Exact Match and Tanimoto similarity scores and Checkpoint Analysis: Review performance across different training iterations.
 
 Bash 
-python evaluate_reconstructions.py
+python evaluate_reconstruction_to_checkpoints.py
 
-Step 10: Checkpoint Analysis: Review performance across different training iterations.
-
-Bash 
-python evaluate_checkpoints.py
-
-Step 11: Hidden-State Probing (Experiment 1): Predict molecular properties from internal decoder layers.
+Step 11: Hidden-State Probing (Experiment 1): Predict molecular properties from internal decoder layers. Partial Decoding Analysis (Experiment 2): Visualize structural convergence during motif-by-motif assembly.
 
 Bash 
-python evaluate_partial_decoding.py
-
-Step 12: Partial Decoding Analysis (Experiment 2): Visualize structural convergence during motif-by-motif assembly.
-
-Bash 
-python evaluate_growth.py
+python evaluate_full_diagnostics.py

@@ -28,8 +28,8 @@ def check_patent_by_smiles(smiles):
 print("Reading local ChEMBL data from data/chembl/all.txt...")
 try:
     with open('data/chembl/all.txt', 'r') as f:
-        # Taking 300 molecules for a balanced test
-        all_smiles = [line.strip() for line in f.readlines()[:300]]
+        # Taking 400 molecules for a balanced test
+        all_smiles = [line.strip() for line in f.readlines()[:400]]
 except FileNotFoundError:
     print("Error: Could not find data/chembl/all.txt. Check your folder structure!")
     exit()

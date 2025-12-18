@@ -11,6 +11,15 @@ import argparse
 import os
 from tqdm.auto import tqdm
 
+# Determine device BEFORE importing hgraph modules
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Monkey-patch torch.cuda to work on CPU
+if device.type == "cpu":
+    original_cuda = torch.Tensor.cuda
+    torch.Tensor.cuda = lambda self, *args, **kwargs: self.to(device)
+    torch.cuda.is_available = lambda: False
+
 from hgraph import *
 
 lg = rdkit.RDLogger.logger() 
@@ -51,13 +60,21 @@ parser.add_argument('--save_iter', type=int, default=5000)
 args = parser.parse_args()
 print(args)
 
+# Create save directory if it doesn't exist
+os.makedirs(args.save_dir, exist_ok=True)
+
 torch.manual_seed(args.seed)
 random.seed(args.seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(args.seed)
 
 vocab = [x.strip("\r\n ").split() for x in open(args.vocab)] 
 args.vocab = PairVocab(vocab)
 
-model = HierVAE(args).cuda()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+args.device = device
+
+model = HierVAE(args).to(device)
 print("Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,))
 
 for param in model.parameters():
